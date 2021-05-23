@@ -2,39 +2,46 @@ import pytest
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+import time
+from page_object.FindAndClick import FindAndClick
+from page_object.AdminPage import AdminLoginForm
+from page_object.AdminProduct import AdminProduct
+from page_object.LeftPanel import LefPanel
+from page_object.RegisterPage import RegisterPage
+from page_object.TopMenu import TopMenu
+from page_object.SearchPage import SearchPage
+from page_object.LoginPage import LoginPage
 
 
-@pytest.mark.parametrize("url", ["http://localhost/"])
-def test_one_page(browser, url):
-    browser.get(url)
+def test_one_page(browser):
     wait = WebDriverWait(browser, 30)
     wait.until(EC.title_is("Your Store"))
     WebDriverWait(browser, 7).until(EC.visibility_of_element_located((By.ID, "menu")))
-    browser.find_element_by_xpath("//*[@id='menu']/div[2]/ul/li[7]/a").click()
-    name_page = browser.find_element_by_css_selector("#content > h2").text
+    FindAndClick(browser)._xpath("//*[@id='menu']/div[2]/ul/li[7]/a")
+    name_page = FindAndClick(browser)._verify_css_presence("#content > h2").text
     assert name_page == "Cameras"
     col = browser.find_element_by_css_selector("#content > div:nth-child(3)").text
     assert col != "ll"
     browser.quit()
 
 
-@pytest.mark.parametrize("url", ["http://localhost/"])
-def test_two_page(browser, url):
-    browser.get(url + "index.php?route=product/category&path=20")
+def test_two_page(browser):
+    browser.find_elements_by_link_text("Desktops")[0].click()
+    FindAndClick(browser)._class_name("see-all")
     wait = WebDriverWait(browser, 30)
     wait.until(EC.title_is("Desktops"))
-    browser.find_element_by_id("list-view").click()
-    browser.find_element_by_id("grid-view").click()
+    FindAndClick(browser)._id("list-view")
+    FindAndClick(browser)._id("grid-view")
     browser.find_element_by_name("search").send_keys("test")
-    browser.find_element_by_css_selector("#search > span > button").click()
+    FindAndClick(browser)._css("#search > span > button")
     answer = browser.find_element_by_css_selector("#content > h2").text
     assert answer == "Products meeting the search criteria"
     browser.quit()
 
 
-@pytest.mark.parametrize("url", ["http://localhost/"])
-def test_three_page(browser, url):
-    browser.get(url + "/index.php?route=product/product&path=57&product_id=49")
+def test_three_page(browser):
+    TopMenu(browser).find_product("Samsung Galaxy Tab")
+    SearchPage(browser).click_in_find_product("Samsung Galaxy Tab")
     wait = WebDriverWait(browser, 30)
     wait.until(EC.title_is("Samsung Galaxy Tab 10.1"))
     price = browser.find_element_by_css_selector("#content > div > div.col-sm-4 > ul:nth-child(4) > li:nth-child(1) > "
@@ -43,21 +50,18 @@ def test_three_page(browser, url):
     tax = browser.find_element_by_css_selector("#content > div > div.col-sm-4 > ul:nth-child(4) > li:nth-child(2)").text
     assert tax == "Ex Tax: $199.99"
     browser.find_element_by_name("quantity").send_keys("2")
-    browser.find_element_by_id("button-cart").click()
+    FindAndClick(browser)._id("button-cart")
     alert = wait.until(EC.visibility_of_element_located((By.CLASS_NAME, "alert")))
     alert = alert.text
     assert alert == "Success: You have added Samsung Galaxy Tab 10.1 to your shopping cart!\n×"
     browser.quit()
 
 
-@pytest.mark.parametrize("url", ["http://localhost/"])
-def test_four_page(browser, url):
-    browser.get(url + "/index.php?route=account/login")
+def test_four_page(browser):
+    TopMenu(browser).login()
     wait = WebDriverWait(browser, 20)
     wait.until(EC.title_is("Account Login"))
-    browser.find_element(By.NAME, "email").send_keys("user1")
-    browser.find_element(By.NAME, "password").send_keys("user")
-    browser.find_element_by_xpath("//*[@id='content']/div/div[2]/div/form/input").click()
+    LoginPage(browser)._login("user1", "user")
     alert = browser.find_element_by_class_name("alert").text
     assert alert == "Warning: No match for E-Mail Address and/or Password."
     browser.quit()
@@ -68,9 +72,45 @@ def test_five_page(browser, url):
     browser.get(url + "/admin/")
     wait = WebDriverWait(browser, 20)
     wait.until(EC.title_is("Administration"))
-    browser.find_element(By.NAME, "username").send_keys("user")
-    browser.find_element(By.NAME, "password").send_keys("bitnami")
-    browser.find_element_by_css_selector("#content > div > div > div > div > div.panel-body > form > div.text-right > "
-                                         "button").click()
+    AdminLoginForm(browser).userloginform("user", "bitnami")
     browser.find_element_by_id("user-profile")
     browser.quit()
+
+
+@pytest.mark.parametrize("url", ["http://localhost/"])
+def test_add_new_product(browser, url):
+    browser.get(url + "/admin/")
+    wait = WebDriverWait(browser, 20)
+    wait.until(EC.title_is("Administration"))
+    AdminLoginForm(browser).userloginform("user", "bitnami")
+    LefPanel(browser).catalog("Products")
+    AdminProduct(browser).add_new_product("testName", "TT", "TT")
+    AdminProduct(browser).find_product("testName")
+    browser.quit()
+
+
+@pytest.mark.parametrize("url", ["http://localhost/"])
+def test_delet_product(browser, url):
+    browser.get(url + "/admin/")
+    wait = WebDriverWait(browser, 20)
+    wait.until(EC.title_is("Administration"))
+    AdminLoginForm(browser).userloginform("user", "bitnami")
+    LefPanel(browser).catalog("Products")
+    AdminProduct(browser).delete_product("testName")
+    browser.switch_to_alert().accept()
+    browser.find_element_by_class_name("alert-dismissible")
+    browser.quit()
+
+
+def test_change_currency(browser):
+    TopMenu(browser).change_currency("EUR")
+    browser.find_elements_by_link_text("£")
+
+
+def test_new_user(browser):
+    TopMenu(browser).register()
+    RegisterPage(browser)._add_information("NameTest", "Famely", "test4@test.test", "1234", "1234")
+    time.sleep(10)
+    text = FindAndClick(browser)._verify_css_presence("#content > h1").text
+    assert text == "Your Account Has Been Created!"
+    FindAndClick(browser)._class_name("pull-right")

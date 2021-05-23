@@ -10,6 +10,7 @@ def pytest_addoption(parser):
     parser.addoption("--maximized", action="store_true", help="Maximize browser windows")
     parser.addoption("--headless", action="store_true", help="Run headless")
     parser.addoption("--browser", action="store", choices=["chrome", "firefox", "opera"], default="chrome")
+    parser.addoption("--url", "-U", default="http://localhost/")
 
 
 @pytest.fixture
@@ -17,6 +18,7 @@ def browser(request):
     browser = request.config.getoption("--browser")
     headless = request.config.getoption("--headless")
     maximized = request.config.getoption("--maximized")
+    url = request.config.getoption("--url")
 
     driver = None
 
@@ -29,7 +31,13 @@ def browser(request):
 
     request.addfinalizer(driver.quit)
 
-    if maximized:
-        driver.maximize_window()
+    def open(path=""):
+        return driver.get(url + path)
+
+    driver.maximize_window()
+    driver.implicitly_wait(10)
+
+    driver.open = open
+    driver.open()
 
     return driver
